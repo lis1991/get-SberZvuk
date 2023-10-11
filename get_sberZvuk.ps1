@@ -1,52 +1,11 @@
-﻿param(
+param(
     [string[]] $Links, 
     [String] $Token,
     [String] $Login,
     [String] $Password
 )
 
-if (!(Test-Path $env:USERPROFILE\.SberZvukDL\config.json)) {
-    'FIRST START CONFIG'
-    $newconf = @{}
-    do {
-        $email = read-host 'Введите логин для SberZvuk (email)'
-        $password = read-host 'Введите пароль для SberZvuk'
-        if ($email -match '\w+[@]\w+\.\w+' -and $Password -ne '') {
-            $newconf.email = $email
-            $newconf.password = $Password
-            $credask = $true
-        }
-        else {$credask = $false}
-    }
-    while ($credask -eq $false)
-    $newconf.token = Read-Host 'Если логинитесь с помощью соцсетей, введите токен, если нет, просто нажмите Enter'
-    do {
-        $formatask = Read-Host 'аудио формат 3 - FLAC, 2 - mp3 320, 1 - mp3 128 (только цифру 1, 2 или 3)'
-        if ($formatask -eq 3 -or $formatask -eq 2 -or $formatask -eq 1) {
-            $newconf.format = $formatask
-            $notNumber = $false
-        }
-        else {$notNumber = $true}
-    }
-    while ($notNumber -eq $true)
-    $asklyrics = read-host 'тексты песен? 1 - да, 2 - нет (по умолчанию нет)'
-    if ($asklyrics -eq 1) {$newconf.lyrics = $true}
-    else {$newconf.lyrics = $false}
-    $askOutpath = read-host 'Папка для сохранения музыки (по умолчанию c:\Music)'
-    if ($askOutpath -match '^\w\:\\\w+') {$newconf.outpath = $askOutpath}
-    else {$newconf.outpath = 'c:\Music\'}
-    $newconf.maxCover = "500x500"
-    $formatFallback = Read-Host 'если нет нужного качества, скачивать качество ниже? 1 - да, 2 - нет (по умолчанию да)'
-    if ($formatFallback -eq 2) {$newconf.formatFallback = $false}
-    else {$newconf.formatFallback = $true}
-    if (!(Test-Path $env:USERPROFILE\.SberZvukDL)) {
-    'creating ' + $env:USERPROFILE + '\.SberZvukDL'
-    New-Item -ItemType Directory $env:USERPROFILE\.SberZvukDL -ErrorAction SilentlyContinue}
-    $newconf|ConvertTo-Json > $env:USERPROFILE\.SberZvukDL\config.json
-    "`n" + 'config saved to ' + $env:USERPROFILE + '\.SberZvukDL\config.json' + "`n"
-}
-#$conf = gc .\config.json|ConvertFrom-Json
-$conf = gc $env:USERPROFILE\.SberZvukDL\config.json|ConvertFrom-Json
+$conf = gc .\config.json|ConvertFrom-Json
 $loginBody = @{}
 
 if ($Token) {'Using Token to log in'}
@@ -71,7 +30,7 @@ Else {
 
 if (!($token)) {
     try {
-        $token = (Invoke-RestMethod -Method Post -ContentType 'application/x-www-form-urlencoded' -Uri 'https://sber-zvuk.com/api/tiny/login/email' -Body $loginBody).result.token
+        $token = (Invoke-RestMethod -Method Post -ContentType 'application/x-www-form-urlencoded' -Uri 'https://zvuk.com/api/tiny/login/email' -Body $loginBody).result.token
     }
     catch {
         $_.Exception
@@ -87,35 +46,28 @@ if (!($token)) {
 #$login
 'got token: ' + $token
 $header = @{'x-auth-token' = $token}
-$prof = Invoke-RestMethod -uri 'https://sber-zvuk.com/api/v2/tiny/profile' -Headers $header
-$prof.result.subscription
+#$prof = Invoke-RestMethod -uri 'https://zvuk.com/api/v2/tiny/profile' -Headers $header
+#$prof.result.profile
 $outPath = $conf.outPath
-if ($outpath -notmatch '\\$') {$outpath = $outpath + '\'}
-if (!(Test-Path $env:USERPROFILE\.SberZvukDL\TagLibSharp.dll)) {
-    'downloading TagLibSharp'
-    Invoke-WebRequest -Uri 'https://globalcdn.nuget.org/packages/taglibsharp.2.2.0.nupkg' -OutFile $env:temp\TaglibSharp.zip
-    Expand-Archive $env:temp\TaglibSharp.zip -DestinationPath $env:temp\TaglibSharp\ -ErrorAction SilentlyContinue
-    copy-item $env:temp\TaglibSharp\lib\net45\TagLibSharp.dll $env:USERPROFILE\.SberZvukDL\
-}
-$TagLib = Get-ChildItem $env:USERPROFILE\.SberZvukDL\TagLibSharp.dll
-'loading TagLibSharp lib'
-[Reflection.Assembly]::LoadFrom(($TagLib.FullName))|out-null
-
+if ($outpath -notmatch '\\$') {$outpath = $ooutpath + '\'}
+$pwd = Resolve-Path ((Get-Location).path + '\TagLibSharp.dll')
 if ($conf.format -eq '3') {$format = 'flac'}
 elseif ($conf.format -eq '2') {$format = 'high'}
 elseif ($conf.format -eq '1') {$format = 'mid'}
 
-$streamURI = 'https://sber-zvuk.com/api/tiny/track/stream'
-$lyrURI = 'https://sber-zvuk.com/api/tiny/musixmatch/lyrics'
-#$albumURI = 'https://sber-zvuk.com/api/tiny/releases'
-#$plistURI = 'https://sber-zvuk.com/api/tiny/playlists'
-#$trackURI = 'https://sber-zvuk.com/api/tiny/tracks'
+$streamURI = 'https://zvuk.com/api/tiny/track/stream'
+$lyrURI = 'https://zvuk.com/api/tiny/musixmatch/lyrics'
+#$albumURI = 'https://zvuk.com/api/tiny/releases'
+#$plistURI = 'https://zvuk.com/api/tiny/playlists'
+#$trackURI = 'https://zvuk.com/api/tiny/tracks'
 
+'loading LibSharp lib'
+[Reflection.Assembly]::LoadFrom(($pwd))|out-null
 
 $links = $links -split ','|foreach {$_ -replace '\s'}
 foreach ($link in $links) {
     if (!($link)) {
-        $link = read-host 'insert SberZvuk link'
+        $link = read-host 'insert Zvuk link'
     }
 
     $reqID = $link -split '/'|select -Last 1
@@ -124,21 +76,21 @@ foreach ($link in $links) {
         'getting info about album'
         #$albumLink = read-host 'insert album link'
         $reqBody = @{'ids' = $reqID;'include' = 'track,'}
-        $reqURL = 'https://sber-zvuk.com/api/tiny/releases'
+        $reqURL = 'https://zvuk.com/api/tiny/releases'
         $downType = 'releases'
     }
     elseif ($link -match '\/playlist\/') {
         'getting info about playlist'
         #$albumLink = read-host 'insert album link'
         $reqBody = @{'ids' = $reqID;'include' = 'track,release,'}
-        $reqURL = 'https://sber-zvuk.com/api/tiny/playlists'
+        $reqURL = 'https://zvuk.com/api/tiny/playlists'
         $downType = 'playlists'
     }
     elseif ($link -match '\/track\/') {
         'getting info about track'
         #$albumLink = read-host 'insert album link'
         $reqBody = @{'ids' = $reqID;'include' = 'track,release,'}
-        $reqURL = 'https://sber-zvuk.com/api/tiny/tracks'
+        $reqURL = 'https://zvuk.com/api/tiny/tracks'
         $downType = 'tracks'
     }
 
@@ -161,6 +113,7 @@ foreach ($link in $links) {
         $body = @{}
         $id = $trackID
         $albumID = $track.value.release_id
+		$plistID = $reqID
         $albumArtist = $downList.result.releases.$albumID.artist_names|select -first 1
         $year = $downList.result.releases.$albumID.date -replace '(^\d{4}).+','$1'
         $trackTitle = $track.value.title
@@ -170,12 +123,17 @@ foreach ($link in $links) {
         $trackNumber = $track.value.position.toString("00")
         if ($downType -eq 'releases') {
             $baseFilename = $trackNumber + ' - ' + $trackTitle
+			$albumArtist = $albumArtist -replace "[$([RegEx]::Escape([string][IO.Path]::GetInvalidFileNameChars()))]+","_"
+			$year = $year -replace "[$([RegEx]::Escape([string][IO.Path]::GetInvalidFileNameChars()))]+","_"
+			$albumName = $albumName -replace "[$([RegEx]::Escape([string][IO.Path]::GetInvalidFileNameChars()))]+","_"
             $downPath = $outPath + $albumArtist + '\' + $year + ' - ' + $albumName
         }
         elseif ($downType -eq 'playlists') {
             $position = $i.toString("000")
             $baseFilename = $position + ' - ' + $artists[0] + ' - ' + $trackTitle  + ' - ' + $albumName
             $plistName = $downList.result.playlists.$plistID.title
+			$plistName = $plistName -replace "[$([RegEx]::Escape([string][IO.Path]::GetInvalidFileNameChars()))]+","_"
+			'Title: ' + $plistName
             $downPath = $outPath + '_plists\' + $plistName
             $i ++
         }
@@ -199,7 +157,11 @@ foreach ($link in $links) {
                 $getFormat = 'MP3'
                 $filename = $baseFilename + '.mp3'
         }
-        $filename = $filename  -replace '[\,\/\\\[\]\:\;\?\!\"]','_'
+        #$filename = $filename  -replace '[\,\/\\\[\]\(\)\:\;\?\!\@\<\>\%\+\"\|\*\"]','_'
+		$filename = $filename -replace "[$([RegEx]::Escape([string][IO.Path]::GetInvalidFileNameChars()))]+","_"
+
+		
+
         if (!(Test-Path $downPath)) {
             "`ncreating dir..."
             (New-Item -ItemType Directory $downPath).Fullname
@@ -207,10 +169,12 @@ foreach ($link in $links) {
         }
         if ($body.id) {
             "`ngetting file info " + $baseFilename + ' (' + $getFormat + ')'
+            $lyrBody = @{'track_id' = $id}
             $ii = 0
             do {
                 try {
                     $url = (Invoke-RestMethod -uri $streamURI -Headers $header -Body $body).result.stream
+                    break
                 }
                 catch {
                     if ($_.Exception -match '\(418\)') {
@@ -222,19 +186,18 @@ foreach ($link in $links) {
                 }
                 $ii ++
             } while ($err -ne '' -and $ii -lt 5)
-            $lyrBody = @{'track_id' = $id}
             if ($conf.lyrics -eq $true) {
-                $lyrReq = $null
+                $lyrReq = ''
                 'getting lyrics...'
-                $ii = 0
                 do {
                     try {
                         $lyrReq = Invoke-RestMethod -uri $lyrURI -Headers $header -Body $lyrBody
+                        break
                     }
                     catch {
                         if ($_.Exception -match '\(418\)') {
                             $err = $_.Exception
-                            $lyrReq = $null
+                            $url = ''
                             Write-Host 'Error 418. Retrying...' -ForegroundColor RED
                         }
                         sleep 3
@@ -276,18 +239,30 @@ foreach ($link in $links) {
             $afile.tag.Title = $trackTitle
             $afile.tag.Track = $trackNumber
             if ($conf.lyrics -eq $true -and $lyrReq.result.lyrics -ne '') {$afile.Tag.Lyrics = $lyrReq.result.lyrics}
-            $coverLink = 'https://cdn41.zvuk.com/pic?type=release&id=' + $albumID + '&size=' + $conf.maxcover + '&ext=jpg'
             try {
-                Invoke-WebRequest $coverLink -OutFile $env:TEMP\cover.jpg
+				$client = new-object System.Net.WebClient
+				$coverLink = 'https://cdn52.zvuk.com/pic?type=release&id=' + $albumID  + '&ext=jpg'
+				$local_bin= $downPath + '\cover_max.jpg'
+				$client.DownloadFile($coverLink, $local_bin)
+				$coverLink = 'https://cdn52.zvuk.com/pic?type=release&id=' + $albumID + '&size=' + $conf.maxcover + '&ext=jpg'
+				$local_bin2= $downPath + '\cover.jpg'
+				$client.DownloadFile($coverLink, $local_bin)
             }
-            catch {if ($_.Exception) {rm $env:TEMP\cover.jpg}}
-            $afile.Tag.Pictures = [taglib.picture]::createfrompath("$env:TEMP\cover.jpg")
+            #catch {if ($_.Exception) {rm $env:TEMP\cover.jpg}}
+			catch {if ($_.Exception) {rm $downPath\cover.jpg}}
+            #$afile.Tag.Pictures = [taglib.picture]::createfrompath("$env:TMP\cover.jpg")
+			if (Test-Path [$downPath\cover.jpg]) {$afile.Tag.Pictures = [taglib.picture]::createfrompath("$downPath\cover.jpg")} 
+			else {$afile.Tag.Pictures = [taglib.picture]::createfrompath("$downPath\cover_max.jpg")}
+            #$afile.Tag.Pictures = [taglib.picture]::createfrompath("$downPath\cover_max.jpg")
+            #$afile.Tag.Pictures = [taglib.picture]::createfrompath("$downPath\cover.jpg")
             $afile.save()
+			
         }
         sleep 1
     }
     if ($links.count -gt 1) {
         'wait 5 secs till go to next link...'
         sleep 5
+
     }
 }
