@@ -1,0 +1,10 @@
+﻿{
+    "email":  "",
+    "password":  "",
+    "token":  "",
+    "format":  3,
+    "lyrics":  true,
+    "outPath":  "d:\\music\\Down\\",
+    "maxCover":  "500x500",
+    "formatFallback":  true
+}
