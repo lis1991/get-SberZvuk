@@ -49,7 +49,7 @@ $header = @{'x-auth-token' = $token}
 #$prof = Invoke-RestMethod -uri 'https://zvuk.com/api/v2/tiny/profile' -Headers $header
 #$prof.result.profile
 $outPath = $conf.outPath
-if ($outpath -notmatch '\\$') {$outpath = $ooutpath + '\'}
+if ($outPath -notmatch '\\$') {$outPath = $ooutpath + '\'}
 $pwd = Resolve-Path ((Get-Location).path + '\TagLibSharp.dll')
 if ($conf.format -eq '3') {$format = 'flac'}
 elseif ($conf.format -eq '2') {$format = 'high'}
@@ -205,7 +205,8 @@ foreach ($link in $links) {
                     $ii ++
                 } while ($err -ne '' -and $ii -lt 5)
             }
-            $fullName = $downPath + '\' + $filename
+#            $fullName = $downPath + '\' + $filename
+			$fullName = $downPath + $filename
             'Downloading file...'
             Start-BitsTransfer -Source $url -Destination $fullName
             'saved file ' + $fullName
